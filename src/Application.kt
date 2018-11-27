@@ -9,6 +9,8 @@ import io.ktor.features.origin
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
 import io.ktor.request.*
+import io.ktor.response.etag
+import io.ktor.response.header
 import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import io.ktor.routing.get
@@ -59,8 +61,6 @@ fun Application.module(testing: Boolean = false) {
               request.port()=${call.request.port()},
               request.path()=${call.request.path()},
               request.document=${call.request.document()},
-
-
             """
             call.respondText(content, ContentType.Text.Html)
         }
@@ -71,6 +71,8 @@ fun Application.module(testing: Boolean = false) {
             logger.info("user=$user")
             val cookies = call.request.cookies
             cookies.rawCookies.forEach { key, value -> logger.info("cookie: key=$key, value=$value") }
+            call.response.header("token", cookies.toString())
+            call.response.etag("33a64df551425fcc55e4d42a148795d9f25f89d4")
         }
     }
     intercept(ApplicationCallPipeline.Call) {
