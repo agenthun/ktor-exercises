@@ -71,7 +71,7 @@ fun Application.module(testing: Boolean = false) {
             logger.info("user=$user")
             val cookies = call.request.cookies
             cookies.rawCookies.forEach { key, value -> logger.info("cookie: key=$key, value=$value") }
-            call.response.header("token", cookies.toString())
+            call.response.header("auth_token", cookies["auth_token"] ?: "")
             call.response.etag("33a64df551425fcc55e4d42a148795d9f25f89d4")
         }
     }
