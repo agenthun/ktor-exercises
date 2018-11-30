@@ -1,13 +1,14 @@
 package com.agenthun
 
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.origin
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
+import io.ktor.network.selector.ActorSelectorManager
+import io.ktor.network.sockets.aSocket
+import io.ktor.network.sockets.openReadChannel
+import io.ktor.network.sockets.openWriteChannel
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
@@ -17,8 +18,15 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.util.KtorExperimentalAPI
+import io.ktor.util.cio.write
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.io.readUTF8Line
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import java.net.InetSocketAddress
 import java.text.DateFormat
+import java.util.concurrent.Executors
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -31,6 +39,7 @@ fun Application.module(testing: Boolean = false) {
             //            call.respondText("hello, agenthun~", ContentType.Text.Html)
             val uri = call.request.uri
             call.respondText("Request uri:$uri")
+            call.application.environment.log.info("hello, call.application.environment.log")
         }
     }
     install(ContentNegotiation) {
@@ -47,7 +56,6 @@ fun Application.module(testing: Boolean = false) {
                 list.forEach {
                     logger.info("$list.item=$it")
                 }
-
             }
             val content = """
               request.call=${call.request.call},
@@ -79,6 +87,31 @@ fun Application.module(testing: Boolean = false) {
         if (call.request.uri == "/") {
 //            call.respondText("Test String")
 
+        }
+    }
+    val exec = Executors.newCachedThreadPool()
+    val selector = ActorSelectorManager(Dispatchers.IO)
+    val socketBuilder = aSocket(selector).tcp()
+    runBlocking {
+        val server = socketBuilder.bind(InetSocketAddress("127.0.0.1", 2323))
+        logger.info("Started echo telnet server at ${server.localAddress}")
+        while (true) {
+            val socket = server.accept()
+            launch {
+                logger.info("Socket accepted: ${socket.remoteAddress}")
+                val input = socket.openReadChannel()
+                val output = socket.openWriteChannel(true)
+                try {
+                    while (true) {
+                        val line = input.readUTF8Line()
+                        logger.info("${socket.remoteAddress}: $line")
+                        output.write("$line\r\n")
+                    }
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    socket.close()
+                }
+            }
         }
     }
 }
