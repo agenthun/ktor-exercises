@@ -1,10 +1,12 @@
 package com.agenthun
 
 import io.ktor.application.*
+import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.origin
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
+import io.ktor.http.push
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -34,12 +36,33 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+    install(CallLogging)
     install(Routing) {
         get("/") {
-            //            call.respondText("hello, agenthun~", ContentType.Text.Html)
-            val uri = call.request.uri
-            call.respondText("Request uri:$uri")
+            call.push("/style.css")
+            call.respondText(
+                """
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <link rel="stylesheet" type="text/css" href="/style.css">
+                    </head>
+                    <body>
+                        <h1>Hello, World!</h1>
+                    </body>
+                </html>
+            """.trimIndent(), ContentType.Text.Html
+            )
             call.application.environment.log.info("hello, call.application.environment.log")
+        }
+    }
+    routing {
+        get("/style.css") {
+            call.respondText(
+                """
+                h1 { color: olive }
+            """, contentType = ContentType.Text.CSS
+            )
         }
     }
     install(ContentNegotiation) {
@@ -89,31 +112,31 @@ fun Application.module(testing: Boolean = false) {
 
         }
     }
-    val exec = Executors.newCachedThreadPool()
-    val selector = ActorSelectorManager(Dispatchers.IO)
-    val socketBuilder = aSocket(selector).tcp()
-    runBlocking {
-        val server = socketBuilder.bind(InetSocketAddress("127.0.0.1", 2323))
-        logger.info("Started echo telnet server at ${server.localAddress}")
-        while (true) {
-            val socket = server.accept()
-            launch {
-                logger.info("Socket accepted: ${socket.remoteAddress}")
-                val input = socket.openReadChannel()
-                val output = socket.openWriteChannel(true)
-                try {
-                    while (true) {
-                        val line = input.readUTF8Line()
-                        logger.info("${socket.remoteAddress}: $line")
-                        output.write("$line\r\n")
-                    }
-                } catch (e: Throwable) {
-                    e.printStackTrace()
-                    socket.close()
-                }
-            }
-        }
-    }
+//    val exec = Executors.newCachedThreadPool()
+//    val selector = ActorSelectorManager(Dispatchers.IO)
+//    val socketBuilder = aSocket(selector).tcp()
+//    runBlocking {
+//        val server = socketBuilder.bind(InetSocketAddress("127.0.0.1", 2323))
+//        logger.info("Started echo telnet server at ${server.localAddress}")
+//        while (true) {
+//            val socket = server.accept()
+//            launch {
+//                logger.info("Socket accepted: ${socket.remoteAddress}")
+//                val input = socket.openReadChannel()
+//                val output = socket.openWriteChannel(true)
+//                try {
+//                    while (true) {
+//                        val line = input.readUTF8Line()
+//                        logger.info("${socket.remoteAddress}: $line")
+//                        output.write("$line\r\n")
+//                    }
+//                } catch (e: Throwable) {
+//                    e.printStackTrace()
+//                    socket.close()
+//                }
+//            }
+//        }
+//    }
 }
 
 data class User(val name: String, val password: String)

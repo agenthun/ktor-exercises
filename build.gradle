@@ -30,8 +30,6 @@ repositories {
     jcenter()
 }
 
-kotlin.experimental.coroutines = 'enable'
-
 task minimizedJar(type: proguard.gradle.ProGuardTask, dependsOn: shadowJar) {
     injars "build/libs/my-application.jar"
     outjars "build/libs/my-application.min.jar"
@@ -57,11 +55,19 @@ task minimizedJar(type: proguard.gradle.ProGuardTask, dependsOn: shadowJar) {
     }
 }
 
+task generateJks(type: JavaExec, dependsOn: 'classed') {
+    classpath = sourceSets.main.runtimeClasspath
+    main = 'com.agenthun.CertificateGenerator'
+}
+
+getTasksByName("run", false).first().dependsOn('generateJks')
+
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "io.ktor:ktor-server-netty:$ktor_version"
     compile "io.ktor:ktor-gson:$ktor_version"
     compile "io.ktor:ktor-network:$ktor_version"
+    compile "io.ktor:ktor-network-tls:$ktor_version"
     compile "ch.qos.logback:logback-classic:$logback_version"
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
 }
