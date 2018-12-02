@@ -3,9 +3,11 @@ package com.agenthun
 import io.ktor.application.*
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
+import io.ktor.features.StatusPages
 import io.ktor.features.origin
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.push
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
@@ -14,6 +16,7 @@ import io.ktor.network.sockets.openWriteChannel
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
+import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import io.ktor.routing.get
@@ -69,6 +72,16 @@ fun Application.module(testing: Boolean = false) {
         gson {
             setDateFormat(DateFormat.LONG)
             setPrettyPrinting()
+        }
+    }
+    install(StatusPages) {
+        exception<Throwable> { cause ->
+            call.respond(HttpStatusCode.InternalServerError)
+        }
+    }
+    routing {
+        get("/health_check") {
+            call.respondText("OK")
         }
     }
     routing {
