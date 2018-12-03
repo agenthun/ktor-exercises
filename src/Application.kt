@@ -1,6 +1,9 @@
 package com.agenthun
 
-import io.ktor.application.*
+import io.ktor.application.Application
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
@@ -8,11 +11,10 @@ import io.ktor.features.origin
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
 import io.ktor.http.push
-import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
@@ -23,15 +25,15 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.util.KtorExperimentalAPI
-import io.ktor.util.cio.write
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.io.readUTF8Line
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
-import java.net.InetSocketAddress
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.text.DateFormat
-import java.util.concurrent.Executors
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -117,12 +119,35 @@ fun Application.module(testing: Boolean = false) {
             cookies.rawCookies.forEach { key, value -> logger.info("cookie: key=$key, value=$value") }
             call.response.header("auth_token", cookies["auth_token"] ?: "")
             call.response.etag("33a64df551425fcc55e4d42a148795d9f25f89d4")
+
+            val multipart = call.receiveMultipart()
+            multipart.forEachPart { part ->
+                when (part) {
+                    is PartData.FormItem -> {
+                        if (part.name == "title") {
+                            val title = part.value
+                            logger.info("title=$title")
+                        }
+                    }
+                    is PartData.FileItem -> {
+                        val uploadDir = part.originalFileName
+                        val ext = File(part.originalFileName).extension
+                        val file = File(
+                            uploadDir,
+                            "upload.$ext"
+                        )
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output -> input.copyToSuspend(output) }
+                        }
+                    }
+                }
+                part.dispose
+            }
         }
     }
     intercept(ApplicationCallPipeline.Call) {
         if (call.request.uri == "/") {
 //            call.respondText("Test String")
-
         }
     }
 //    val exec = Executors.newCachedThreadPool()
@@ -155,3 +180,27 @@ fun Application.module(testing: Boolean = false) {
 data class User(val name: String, val password: String)
 
 val logger = LoggerFactory.getLogger("hun-log")
+
+suspend fun InputStream.copyToSuspend(
+    out: OutputStream,
+    bufferSize: Int = DEFAULT_BUFFER_SIZE,
+    yieldSize: Int = 4 * 1024 * 1024,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO
+): Long {
+    return withContext(dispatcher) {
+        val buffer = ByteArray(bufferSize)
+        var bytesCopied = 0L
+        var bytesAfterYield = 0L
+        while (true) {
+            val bytes = read(buffer).takeIf { it >= 0 } ?: break
+            out.write(buffer, 0, bytes)
+            if (bytesAfterYield >= yieldSize) {
+                yield()
+                bytesAfterYield %= yieldSize
+            }
+            bytesCopied += bytes
+            bytesAfterYield += bytes
+        }
+        return@withContext bytesCopied
+    }
+}
