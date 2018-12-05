@@ -4,6 +4,7 @@ import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.auth.*
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
@@ -24,6 +25,7 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
+import io.ktor.sessions.sessions
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +44,34 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
     install(CallLogging)
+    install(Authentication) {
+        basic(name = "myauth1") {
+            realm = "Ktor Server"
+            validate { credentials ->
+                if (credentials.name == credentials.password) {
+                    UserIdPrincipal(credentials.name)
+                } else {
+                    null
+                }
+            }
+        }
+        form {
+
+        }
+        basic("name2") {
+            skipWhen { call -> call.sessions.get("user_sessions") != null }
+        }
+    }
+    routing {
+        authenticate("myauth1") {
+            get("/authenticated/route1") {
+                logger.info(call.request.uri)
+            }
+            get("/other/route2") {
+                logger.info(call.request.uri)
+            }
+        }
+    }
     install(Routing) {
         get("/") {
             call.push("/style.css")
