@@ -26,10 +26,7 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.sessions.sessions
-import io.ktor.util.InternalAPI
-import io.ktor.util.KtorExperimentalAPI
-import io.ktor.util.decodeBase64
-import io.ktor.util.getDigestFunction
+import io.ktor.util.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,6 +35,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 import java.text.DateFormat
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
@@ -82,6 +80,17 @@ fun Application.module(testing: Boolean = false) {
                         "test" to decodeBase64("VltM4nfheqcJSyH887H+4NEOm2tDuKCl83p5axYXlF0=")
                     )
                 ).authenticate(credentials)
+            }
+        }
+    }
+    authentication {
+        val myRealm = "MyRealm"
+        val usersInMyRealmToHA1: Map<String, ByteArray> = mapOf(
+            "test" to hex("fb12475e62dedc5c2744d98eb73b8877")
+        )
+        digest {
+            userNameRealmPasswordDigestProvider = { userName, realm ->
+                usersInMyRealmToHA1[userName]
             }
         }
     }
