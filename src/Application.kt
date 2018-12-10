@@ -8,6 +8,7 @@ import io.ktor.application.install
 import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
 import io.ktor.auth.jwt.jwt
+import io.ktor.auth.ldap.ldapAuthenticate
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
@@ -35,12 +36,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
+import sun.security.rsa.RSAUtil.KeyType.lookup
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
 import java.text.DateFormat
 import java.util.concurrent.TimeUnit
+import javax.naming.directory.SearchControls
+import javax.naming.ldap.LdapContext
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -84,6 +88,24 @@ fun Application.module(testing: Boolean = false) {
                         "test" to decodeBase64("VltM4nfheqcJSyH887H+4NEOm2tDuKCl83p5axYXlF0=")
                     )
                 ).authenticate(credentials)
+            }
+        }
+        basic("authName2") {
+            realm = "realm"
+            validate { credentials ->
+                ldapAuthenticate(credentials, "ldap://localhost:389", "uid=%s, ou=system")
+            }
+        }
+        basic("authName3") {
+            realm = "realm"
+            validate { credentials ->
+                ldapAuthenticate(credentials, "ldap://localhost:389", "cn=%s ou=users") {
+                    if (it.name == it.password) {
+                        UserIdPrincipal(it.name)
+                    } else {
+                        null
+                    }
+                }
             }
         }
     }
