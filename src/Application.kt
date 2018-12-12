@@ -1,24 +1,18 @@
 package com.agenthun
 
 import com.auth0.jwk.JwkProviderBuilder
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
 import io.ktor.auth.jwt.jwt
 import io.ktor.auth.ldap.ldapAuthenticate
 import io.ktor.features.*
 import io.ktor.gson.gson
-import io.ktor.http.CacheControl
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.http.content.CachingOptions
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.http.content.streamProvider
-import io.ktor.http.push
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
@@ -40,6 +34,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.text.DateFormat
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -57,6 +52,22 @@ fun Application.module(testing: Boolean = false) {
                 else -> null
             }
         }
+    }
+    install(CallId) {
+        retrieve { call ->
+            call.request.header(HttpHeaders.XRequestId)
+        }
+        val counter = AtomicInteger(0)
+        generate { "generated-call-id-${counter.getAndIncrement()}" }
+        verify { callId: String ->
+            callId.isNotEmpty()
+        }
+        reply { call: ApplicationCall, callId: String ->
+            logger.info("call=$call, callId=$callId")
+        }
+        retrieveFromHeader(headerName = "testHeaderByRetrieve")
+        replyToHeader(headerName = "testHeaderByReply")
+        header(headerName = "testHeader")
     }
     install(Authentication) {
         basic(name = "myauth1") {
