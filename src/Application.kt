@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -43,7 +44,10 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
-    install(CallLogging)
+    install(CallLogging) {
+        level = Level.TRACE
+        filter { call -> call.request.path().startsWith("/section1") }
+    }
     install(AutoHeadResponse)
     install(CachingHeaders) {
         options { outgoingContent ->
@@ -68,6 +72,19 @@ fun Application.module(testing: Boolean = false) {
         retrieveFromHeader(headerName = "testHeaderByRetrieve")
         replyToHeader(headerName = "testHeaderByReply")
         header(headerName = "testHeader")
+    }
+    install(Compression) {
+        gzip {
+            priority = 1.0
+            condition {
+                parameters["e"] == "1"
+                request.headers[HttpHeaders.Referrer]?.startsWith("https://my.domin/") == true
+            }
+        }
+        deflate {
+            priority = 10.0
+            minimumSize(1024)
+        }
     }
     install(Authentication) {
         basic(name = "myauth1") {
