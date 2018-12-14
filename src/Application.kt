@@ -1,18 +1,18 @@
 package com.agenthun
 
 import com.auth0.jwk.JwkProviderBuilder
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
 import io.ktor.auth.jwt.jwt
 import io.ktor.auth.ldap.ldapAuthenticate
 import io.ktor.features.*
+import io.ktor.gson.GsonConverter
 import io.ktor.gson.gson
 import io.ktor.http.*
-import io.ktor.http.content.CachingOptions
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
-import io.ktor.http.content.streamProvider
+import io.ktor.http.content.*
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
@@ -24,8 +24,12 @@ import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.sessions.sessions
 import io.ktor.util.*
+import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.readRemaining
+import kotlinx.coroutines.io.reader
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
@@ -33,6 +37,7 @@ import org.slf4j.event.Level
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.charset.Charset
 import java.text.DateFormat
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -84,6 +89,30 @@ fun Application.module(testing: Boolean = false) {
         deflate {
             priority = 10.0
             minimumSize(1024)
+        }
+    }
+    install(ConditionalHeaders) {
+        version { content -> listOf(EntityTagVersion("tag1")) }
+    }
+    install(ContentNegotiation) {
+        //        register(ContentType.Application.Json, GsonConverter(GsonBuilder().apply {
+//
+//        }.create()))
+        gson {
+            setPrettyPrinting()
+
+            disableHtmlEscaping()
+            disableInnerClassSerialization()
+            enableComplexMapKeySerialization()
+
+            serializeNulls()
+
+            serializeSpecialFloatingPointValues()
+            excludeFieldsWithoutExposeAnnotation()
+
+            generateNonExecutableJson()
+
+            setLenient()
         }
     }
     install(Authentication) {
