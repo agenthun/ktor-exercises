@@ -72,6 +72,7 @@ dependencies {
     compile "io.ktor:ktor-auth-jwt:$ktor_version"
     compile "io.ktor:ktor-auth-ldap:$ktor_version"
     compile "io.ktor:ktor-gson:$ktor_version"
+    compile "io.ktor:ktor-jackson:$ktor_version"
     compile "ch.qos.logback:logback-classic:$logback_version"
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
 }

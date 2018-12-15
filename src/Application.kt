@@ -1,6 +1,8 @@
 package com.agenthun
 
 import com.auth0.jwk.JwkProviderBuilder
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.ktor.application.*
@@ -13,6 +15,8 @@ import io.ktor.gson.GsonConverter
 import io.ktor.gson.gson
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.jackson.JacksonConverter
+import io.ktor.jackson.jackson
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
@@ -113,6 +117,14 @@ fun Application.module(testing: Boolean = false) {
             generateNonExecutableJson()
 
             setLenient()
+        }
+        register(ContentType.Application.Json, JacksonConverter(ObjectMapper().apply {
+
+        }))
+        jackson {
+            enable(SerializationFeature.INDENT_OUTPUT)
+            dateFormat = DateFormat.getDateInstance()
+            disableDefaultTyping()
         }
     }
     install(Authentication) {
