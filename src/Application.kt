@@ -3,15 +3,12 @@ package com.agenthun
 import com.auth0.jwk.JwkProviderBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
 import io.ktor.auth.jwt.jwt
 import io.ktor.auth.ldap.ldapAuthenticate
 import io.ktor.features.*
-import io.ktor.gson.GsonConverter
 import io.ktor.gson.gson
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -28,12 +25,8 @@ import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.sessions.sessions
 import io.ktor.util.*
-import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.io.readRemaining
-import kotlinx.coroutines.io.reader
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
@@ -41,8 +34,8 @@ import org.slf4j.event.Level
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.nio.charset.Charset
 import java.text.DateFormat
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -126,6 +119,14 @@ fun Application.module(testing: Boolean = false) {
             dateFormat = DateFormat.getDateInstance()
             disableDefaultTyping()
         }
+    }
+    install(CORS) {
+        method(HttpMethod.Options)
+        header(HttpHeaders.XForwardedProto)
+        anyHost()
+        host("my-host")
+        allowCredentials = true
+        maxAge = Duration.ofDays(1)
     }
     install(Authentication) {
         basic(name = "myauth1") {
