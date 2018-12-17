@@ -35,7 +35,9 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.time.Duration
+import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -127,6 +129,23 @@ fun Application.module(testing: Boolean = false) {
         host("my-host")
         allowCredentials = true
         maxAge = Duration.ofDays(1)
+    }
+    install(DataConversion) {
+        convert<Date> {
+            val format = SimpleDateFormat.getInstance()
+
+            decode { values, type ->
+                values.singleOrNull()?.let { format.parse(it) }
+            }
+
+            encode { value ->
+                when (value) {
+                    null -> listOf()
+                    is Date -> listOf(SimpleDateFormat.getInstance().format(value))
+                    else -> throw DataConversionException("Cannot convert $value as Date")
+                }
+            }
+        }
     }
     install(Authentication) {
         basic(name = "myauth1") {
