@@ -147,6 +147,10 @@ fun Application.module(testing: Boolean = false) {
             }
         }
     }
+    install(DefaultHeaders) {
+        header("X-Developer", "John Doe")
+        header(HttpHeaders.Server, "Konstructor")
+    }
     install(Authentication) {
         basic(name = "myauth1") {
             realm = "Ktor Server"
