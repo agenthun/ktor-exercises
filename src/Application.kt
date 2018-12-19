@@ -151,6 +151,15 @@ fun Application.module(testing: Boolean = false) {
         header("X-Developer", "John Doe")
         header(HttpHeaders.Server, "Konstructor")
     }
+    install(ForwardedHeaderSupport)
+    install(XForwardedHeaderSupport)
+    install(HSTS) {
+        maxAge = Duration.ofDays(30)
+    }
+    install(HttpsRedirect) {
+        sslPort = 443
+        permanentRedirect = true
+    }
     install(Authentication) {
         basic(name = "myauth1") {
             realm = "Ktor Server"
