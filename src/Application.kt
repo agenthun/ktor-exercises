@@ -14,6 +14,9 @@ import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
+import io.ktor.locations.KtorExperimentalLocationsAPI
+import io.ktor.locations.Location
+import io.ktor.locations.Locations
 import io.ktor.request.*
 import io.ktor.response.etag
 import io.ktor.response.header
@@ -43,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
+@KtorExperimentalLocationsAPI
 @InternalAPI
 @UseExperimental(KtorExperimentalAPI::class)
 @Suppress("unused") // Referenced in application.conf
@@ -159,6 +163,12 @@ fun Application.module(testing: Boolean = false) {
     install(HttpsRedirect) {
         sslPort = 443
         permanentRedirect = true
+    }
+    install(Locations)
+    routing {
+        get<Listing> { listing ->
+            call.respondText("Listing ${listing.name}, page ${listing.page}")
+        }
     }
     install(Authentication) {
         basic(name = "myauth1") {
@@ -408,3 +418,6 @@ suspend fun InputStream.copyToSuspend(
         return@withContext bytesCopied
     }
 }
+
+@Location("/list/{name}/page/{page}")
+data class Listing(val name: String, val page: Int)
