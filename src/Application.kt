@@ -28,6 +28,7 @@ import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.sessions.sessions
 import io.ktor.util.*
+import jdk.internal.platform.Metrics
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -165,11 +166,19 @@ fun Application.module(testing: Boolean = false) {
         permanentRedirect = true
     }
     install(Locations)
-    routing {
-        get<Listing> { listing ->
-            call.respondText("Listing ${listing.name}, page ${listing.page}")
-        }
-    }
+//    routing {
+//        get<Listing> { listing ->
+//            call.respondText("Listing ${listing.name}, page ${listing.page}")
+//        }
+//    }
+//    install(Metrics) {
+//        Slf4jReporter.forRegistry(registry)
+//            .outputTo(log)
+//            .convertRatesTo(TimeUnit.SECONDS)
+//            .convertDurationsTo(TimeUnit.MILLISECONDS)
+//            .build()
+//            .start(10, TimeUnit.SECONDS)
+//    }
     install(Authentication) {
         basic(name = "myauth1") {
             realm = "Ktor Server"
