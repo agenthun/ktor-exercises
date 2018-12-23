@@ -22,10 +22,7 @@ import io.ktor.response.etag
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
-import io.ktor.routing.Routing
-import io.ktor.routing.get
-import io.ktor.routing.post
-import io.ktor.routing.routing
+import io.ktor.routing.*
 import io.ktor.sessions.sessions
 import io.ktor.util.*
 import jdk.internal.platform.Metrics
@@ -179,6 +176,9 @@ fun Application.module(testing: Boolean = false) {
 //            .build()
 //            .start(10, TimeUnit.SECONDS)
 //    }
+    install(PartialContent) {
+        maxRangeCount = 10
+    }
     install(Authentication) {
         basic(name = "myauth1") {
             realm = "Ktor Server"
@@ -347,6 +347,74 @@ fun Application.module(testing: Boolean = false) {
                 part.dispose
             }
         }
+    }
+    routing {
+        route("a") {
+            route("b") {
+                get {
+
+                }
+                post {
+
+                }
+            }
+        }
+        method(HttpMethod.Get) {
+            route("a") {
+                route("b") {
+                    handle {
+
+                    }
+                }
+            }
+        }
+        route("/foo/bar") {
+
+        }
+        route("/foo") {
+            route("bar2") {
+
+            }
+        }
+        get("/user/{login}") {
+            val login = call.parameters["login"]
+        }
+        get("/user/{login}/{fullname?}") {
+
+        }
+        accept(ContentType.Text.Plain) {
+
+        }
+        accept(ContentType.Text.Html) {
+
+        }
+        route("/portal") {
+            route("articles") {
+
+            }
+            route("admin") {
+                intercept(ApplicationCallPipeline.Features) {
+
+                }
+                route("article/{id}") {
+
+                }
+                route("profile/{id}") {
+
+                }
+            }
+        }
+        trace { application.log.trace(it.buildText()) }
+        get("/bar") { call.respond("/bar") }
+        get("/baz") { call.respond("/baz") }
+        get("/baz/x") { call.respond("/baz/x") }
+        get("/baz/x/{optional?}") { call.respond("/baz/x/{optional?}") }
+        get("/baz/{y}") { call.respond("/baz/{y}") }
+        get("/baz/{y}/value") { call.respond("/baz/{y}/value") }
+        get("/{param}") { call.respond("/{param}") }
+        get("/{param}/x") { call.respond("/{param}/x") }
+        get("/{param}/x/z") { call.respond("/{param}/x/z") }
+        get("/*/extra") { call.respond("/*/extra") }
     }
     intercept(ApplicationCallPipeline.Call) {
         if (call.request.uri == "/") {
