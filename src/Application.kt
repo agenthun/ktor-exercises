@@ -23,6 +23,8 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
+import io.ktor.sessions.Sessions
+import io.ktor.sessions.cookie
 import io.ktor.sessions.sessions
 import io.ktor.util.*
 import jdk.internal.platform.Metrics
@@ -157,6 +159,11 @@ fun Application.module(testing: Boolean = false) {
     install(XForwardedHeaderSupport)
     install(HSTS) {
         maxAge = Duration.ofDays(30)
+    }
+    install(Sessions) {
+        cookie<SampleSession>(
+            "COOKIE_NAME"
+        )
     }
     install(HttpsRedirect) {
         sslPort = 443
@@ -352,7 +359,7 @@ fun Application.module(testing: Boolean = false) {
         route("a") {
             route("b") {
                 get {
-
+                    val mySession=call.sessions.get("MY_SESSION")
                 }
                 post {
 
@@ -498,3 +505,5 @@ suspend fun InputStream.copyToSuspend(
 
 @Location("/list/{name}/page/{page}")
 data class Listing(val name: String, val page: Int)
+
+data class SampleSession(val name: String, val value: Int)
