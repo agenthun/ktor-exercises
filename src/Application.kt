@@ -23,11 +23,8 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
-import io.ktor.sessions.Sessions
-import io.ktor.sessions.cookie
-import io.ktor.sessions.sessions
+import io.ktor.sessions.*
 import io.ktor.util.*
-import jdk.internal.platform.Metrics
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -162,8 +159,12 @@ fun Application.module(testing: Boolean = false) {
     }
     install(Sessions) {
         cookie<SampleSession>(
-            "COOKIE_NAME"
-        )
+            "COOKIE_NAME",
+            storage = SessionStorageMemory()
+        ) {
+            val secretSignKey = hex("000102030405060708090a0b0c0d0e0f")
+            transform(SessionTransportTransformerMessageAuthentication(secretSignKey))
+        }
     }
     install(HttpsRedirect) {
         sslPort = 443
@@ -359,7 +360,8 @@ fun Application.module(testing: Boolean = false) {
         route("a") {
             route("b") {
                 get {
-                    val mySession=call.sessions.get("MY_SESSION")
+                    val mySession = call.getMyExpirableSession()
+                    call.respondText(text = "mySession.expiration= ${mySession.expiration}, mySession.name=${mySession.name}, mySession.value=${mySession.value}")
                 }
                 post {
 
@@ -506,4 +508,12 @@ suspend fun InputStream.copyToSuspend(
 @Location("/list/{name}/page/{page}")
 data class Listing(val name: String, val page: Int)
 
-data class SampleSession(val name: String, val value: Int)
+data class SampleSession(val name: String, val value: Int, val expiration: Long = System.currentTimeMillis())
+
+fun ApplicationCall.getMyExpirableSession(): SampleSession {
+    val session = sessions.get<SampleSession>() ?: error("No session found")
+    if (System.currentTimeMillis() > session.expiration) {
+        error("Session expired")
+    }
+    return session
+}
