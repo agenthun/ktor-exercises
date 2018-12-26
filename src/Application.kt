@@ -27,10 +27,15 @@ import io.ktor.sessions.*
 import io.ktor.util.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.ByteWriteChannel
+import kotlinx.coroutines.io.readAvailable
+import kotlinx.coroutines.io.reader
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -40,6 +45,8 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.NoSuchElementException
+import kotlin.coroutines.coroutineContext
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -164,6 +171,8 @@ fun Application.module(testing: Boolean = false) {
         ) {
             val secretSignKey = hex("000102030405060708090a0b0c0d0e0f")
             transform(SessionTransportTransformerMessageAuthentication(secretSignKey))
+            cookie.extensions["SameSite"] = "lax"
+            cookie.path = "/"
         }
     }
     install(HttpsRedirect) {
@@ -516,4 +525,40 @@ fun ApplicationCall.getMyExpirableSession(): SampleSession {
         error("Session expired")
     }
     return session
+}
+
+interface SessionStorage {
+    suspend fun write(id: String, provider: suspend (ByteWriteChannel) -> Unit)
+    suspend fun invalidate(id: String)
+    suspend fun <R> read(id: String, consumer: suspend (ByteReadChannel) -> R): R
+}
+
+abstract class SimplifiedSessionStorage : SessionStorage {
+    abstract suspend fun read(id: String): ByteArray?
+    abstract suspend fun write(id: String, data: ByteArray?): Unit
+    override suspend fun invalidate(id: String) {
+        write(id, null)
+    }
+
+    override suspend fun <R> read(id: String, consumer: suspend (ByteReadChannel) -> R): R {
+        val data = read(id) ?: throw NoSuchElementException("Session $id not found")
+        return consumer(ByteReadChannel(data))
+    }
+
+    override suspend fun write(id: String, provider: suspend (ByteWriteChannel) -> Unit) {
+        return provider(reader(coroutineContext, autoFlush = true) {
+            write(id, channel.readAvailable())
+        }.channel)
+    }
+}
+
+suspend fun ByteReadChannel.readAvailable(): ByteArray {
+    val data = ByteArrayOutputStream()
+    val temp = ByteArray(1024)
+    while (!isClosedForRead) {
+        val read = readAvailable(temp)
+        if (read <= 0) break
+        data.write(temp, 0, read)
+    }
+    return data.toByteArray()
 }
