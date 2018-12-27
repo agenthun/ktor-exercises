@@ -3,6 +3,7 @@ package com.agenthun
 import com.auth0.jwk.JwkProviderBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
@@ -39,6 +40,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.lang.reflect.Type
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.time.Duration
@@ -173,6 +175,8 @@ fun Application.module(testing: Boolean = false) {
             transform(SessionTransportTransformerMessageAuthentication(secretSignKey))
             cookie.extensions["SameSite"] = "lax"
             cookie.path = "/"
+            serializer = autoSerializerOf(SampleSession::class)
+            serializer = GsonSessionSerializer(SampleSession::class.java)
         }
     }
     install(HttpsRedirect) {
@@ -561,4 +565,20 @@ suspend fun ByteReadChannel.readAvailable(): ByteArray {
         data.write(temp, 0, read)
     }
     return data.toByteArray()
+}
+
+class GsonSessionSerializer(
+    val type: Type, val gson: Gson = Gson(), configure: Gson.() -> Unit = {}
+) : SessionSerializer {
+    init {
+        configure(gson)
+    }
+
+    override fun deserialize(text: String): Any {
+        return gson.fromJson(text, type)
+    }
+
+    override fun serialize(session: Any): String {
+        return gson.toJson(session)
+    }
 }
