@@ -173,6 +173,10 @@ fun Application.module(testing: Boolean = false) {
         ) {
             val secretSignKey = hex("000102030405060708090a0b0c0d0e0f")
             transform(SessionTransportTransformerMessageAuthentication(secretSignKey))
+            transform(SessionTransportTransformerMessageAuthentication(secretSignKey, "HmacSHA256"))
+            val secretEncryptKey = hex("00112233445566778899aabbccddeeff")
+            val secretAuthKey = hex("02030405060708090a0b0c")
+            transform(SessionTransportTransformerEncrypt(secretEncryptKey, secretAuthKey))
             cookie.extensions["SameSite"] = "lax"
             cookie.path = "/"
             serializer = autoSerializerOf(SampleSession::class)
