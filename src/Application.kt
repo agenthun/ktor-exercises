@@ -24,6 +24,7 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
+import io.ktor.server.engine.ShutDownUrl
 import io.ktor.sessions.*
 import io.ktor.util.*
 import kotlinx.coroutines.CoroutineDispatcher
@@ -203,6 +204,10 @@ fun Application.module(testing: Boolean = false) {
 //    }
     install(PartialContent) {
         maxRangeCount = 10
+    }
+    install(ShutDownUrl.ApplicationCallFeature) {
+        shutDownUrl = "/ktor/application/shutdown"
+        exitCodeSupplier = { 0 }
     }
     install(Authentication) {
         basic(name = "myauth1") {
