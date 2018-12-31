@@ -318,6 +318,22 @@ fun Application.module(testing: Boolean = false) {
         get("/health_check") {
             call.respondText("OK")
         }
+        static("static") {
+            files("css")
+            files("js")
+            file("image.png")
+            file("random.txt", "image.png")
+            default("index.html")
+            static("themes") {
+                files("data")
+            }
+            resources("css")
+            resource("favicon.ico")
+        }
+        static("custom") {
+            staticRootFolder = File("/system/folder/docs")
+            files("public")
+        }
     }
     routing {
         get("/simple/get") {
