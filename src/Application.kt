@@ -9,6 +9,7 @@ import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
 import io.ktor.auth.jwt.jwt
 import io.ktor.auth.ldap.ldapAuthenticate
+import io.ktor.client.features.HttpRedirect
 import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.*
@@ -19,14 +20,12 @@ import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.request.*
-import io.ktor.response.etag
-import io.ktor.response.header
-import io.ktor.response.respond
-import io.ktor.response.respondText
+import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.ShutDownUrl
 import io.ktor.sessions.*
 import io.ktor.util.*
+import junit.framework.Assert.fail
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.io.ByteReadChannel
@@ -42,12 +41,14 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.lang.reflect.Type
+import java.nio.file.ClosedFileSystemException
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import javax.security.sasl.AuthenticationException
 import kotlin.NoSuchElementException
 import kotlin.coroutines.coroutineContext
 
@@ -313,6 +314,41 @@ fun Application.module(testing: Boolean = false) {
         exception<Throwable> { cause ->
             call.respond(HttpStatusCode.InternalServerError)
         }
+        exception<AuthenticationException> { cause ->
+            call.respond(HttpStatusCode.Unauthorized)
+        }
+        exception<AuthenticationException> { cause ->
+            call.respond(HttpStatusCode.Forbidden)
+        }
+        exception<IllegalStateException> { cause ->
+            fail("will not reach here")
+        }
+        exception<ClosedFileSystemException> {
+            throw IllegalStateException()
+        }
+        exception<java.lang.IllegalStateException> { cause ->
+            throw java.lang.IllegalStateException("")
+        }
+        exception<Throwable> { cause ->
+            call.respond(HttpStatusCode.InternalServerError, "Internal Server Error")
+            throw cause
+        }
+        exception<HttpRedirectException> { e ->
+            call.respondRedirect(e.location, permanent = e.permanent)
+        }
+        status(HttpStatusCode.NotFound) {
+            call.respond(
+                TextContent(
+                    "${it.value} ${it.description}",
+                    ContentType.Text.Plain.withCharset(Charsets.UTF_8),
+                    it
+                )
+            )
+        }
+        statusFile(HttpStatusCode.NotFound, HttpStatusCode.Unauthorized, filePattern = "error#.html")
+    }
+    intercept(ApplicationCallPipeline.Fallback) {
+        throw ClosedFileSystemException()
     }
     routing {
         get("/health_check") {
@@ -607,3 +643,7 @@ class GsonSessionSerializer(
         return gson.toJson(session)
     }
 }
+
+class HttpRedirectException(val location: String, val permanent: Boolean = false) : RuntimeException()
+
+fun redirect(location: String, permanent: Boolean = false): Nothing = throw HttpRedirectException(location, permanent)
