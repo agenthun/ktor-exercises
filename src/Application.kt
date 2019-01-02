@@ -350,6 +350,15 @@ fun Application.module(testing: Boolean = false) {
     intercept(ApplicationCallPipeline.Fallback) {
         throw ClosedFileSystemException()
     }
+//    install(FreeMarker) {
+//        templateLoader = ClassTemplateLoader(TheApp::class.java.classLoader, "templates")
+//    }
+//    routing {
+//        get("/{...}") {
+//            val user = User("user name", "user@example.com")
+//            call.respond(FreeMarkerContent("index.ftl", mapOf("user" to user), "e"))
+//        }
+//    }
     routing {
         get("/health_check") {
             call.respondText("OK")
