@@ -4,6 +4,7 @@ import com.auth0.jwk.JwkProviderBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.google.gson.Gson
+import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.JWTPrincipal
@@ -11,7 +12,10 @@ import io.ktor.auth.jwt.jwt
 import io.ktor.auth.ldap.ldapAuthenticate
 import io.ktor.client.features.HttpRedirect
 import io.ktor.features.*
+import io.ktor.freemarker.FreeMarker
+import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.gson.gson
+import io.ktor.html.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.jackson.JacksonConverter
@@ -34,6 +38,7 @@ import kotlinx.coroutines.io.readAvailable
 import kotlinx.coroutines.io.reader
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlinx.html.*
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.ByteArrayOutputStream
@@ -350,15 +355,15 @@ fun Application.module(testing: Boolean = false) {
     intercept(ApplicationCallPipeline.Fallback) {
         throw ClosedFileSystemException()
     }
-//    install(FreeMarker) {
-//        templateLoader = ClassTemplateLoader(TheApp::class.java.classLoader, "templates")
-//    }
-//    routing {
-//        get("/{...}") {
-//            val user = User("user name", "user@example.com")
-//            call.respond(FreeMarkerContent("index.ftl", mapOf("user" to user), "e"))
-//        }
-//    }
+    install(FreeMarker) {
+        templateLoader = ClassTemplateLoader(Application::class.java.classLoader, "templates")
+    }
+    routing {
+        get("/{...}") {
+            val user = User("user name", "user@example.com")
+            call.respond(FreeMarkerContent("index.ftl", mapOf("user" to user), "e"))
+        }
+    }
     routing {
         get("/health_check") {
             call.respondText("OK")
@@ -402,7 +407,26 @@ fun Application.module(testing: Boolean = false) {
               request.path()=${call.request.path()},
               request.document=${call.request.document()},
             """
-            call.respondText(content, ContentType.Text.Html)
+//            call.respondText(content, ContentType.Text.Html)
+            call.respondHtml {
+                head { title { +"Async World" } }
+                body {
+                    h1("title") { +"Title" }
+                }
+            }
+        }
+    }
+    routing {
+        get("/simple/html") {
+            val name = call.parameters["name"]
+            call.respondHtmlTemplate(MulticolumnTemplate()) {
+                column1 {
+                    +"Hello, $name"
+                }
+                column2 {
+                    +"col2"
+                }
+            }
         }
     }
     routing {
@@ -656,3 +680,60 @@ class GsonSessionSerializer(
 class HttpRedirectException(val location: String, val permanent: Boolean = false) : RuntimeException()
 
 fun redirect(location: String, permanent: Boolean = false): Nothing = throw HttpRedirectException(location, permanent)
+
+class MulticolumnTemplate(val main: MainTemplate = MainTemplate()) : Template<HTML> {
+    val column1 = Placeholder<FlowContent>()
+    val column2 = Placeholder<FlowContent>()
+
+    override fun HTML.apply() {
+        insert(main) {
+            menu {
+                item { +"One" }
+                item { +"Two" }
+            }
+            content {
+                div("column") {
+                    insert(column1)
+                }
+                div("column") {
+                    insert(column2)
+                }
+            }
+        }
+    }
+}
+
+class MainTemplate : Template<HTML> {
+    val content = Placeholder<HtmlBlockTag>()
+    val menu = TemplatePlaceholder<MenuTemplate>()
+    override fun HTML.apply() {
+        head {
+            title { +"Template" }
+        }
+        body {
+            h1 {
+                insert(content)
+            }
+            insert(MenuTemplate(), menu)
+        }
+    }
+}
+
+class MenuTemplate : Template<FlowContent> {
+    val item = PlaceholderList<UL, FlowContent>()
+    override fun FlowContent.apply() {
+        if (!item.isEmpty()) {
+            ul {
+                each(item) {
+                    li {
+                        if (it.first) b {
+                            insert(it)
+                        } else {
+                            insert(it)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
