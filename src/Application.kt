@@ -29,6 +29,8 @@ import io.ktor.routing.*
 import io.ktor.server.engine.ShutDownUrl
 import io.ktor.sessions.*
 import io.ktor.util.*
+import io.ktor.velocity.Velocity
+import io.ktor.velocity.VelocityContent
 import junit.framework.Assert.fail
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,8 @@ import kotlinx.coroutines.io.reader
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import kotlinx.html.*
+import org.apache.velocity.runtime.resource.loader.StringResourceLoader
+import org.apache.velocity.runtime.resource.util.StringResourceRepository
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.ByteArrayOutputStream
@@ -427,6 +431,21 @@ fun Application.module(testing: Boolean = false) {
                     +"col2"
                 }
             }
+        }
+    }
+    install(Velocity) {
+        setProperty("resource.loader", "string")
+        addProperty("string.resource.loader.class", StringResourceLoader::class.java.name)
+        addProperty("string.resource.loader.repository.static", "false")
+        init()
+        (getApplicationAttribute(StringResourceLoader.REPOSITORY_NAME_DEFAULT) as StringResourceRepository).apply {
+            putStringResource("test.vl", "<p>Hello, \$id</p><h1>\$title</h1>")
+        }
+    }
+    routing {
+        val model = mapOf("id" to 1, "title" to "Hello, World!")
+        get("/simple/velocity") {
+            call.respond(VelocityContent("test.vl", model, "e"))
         }
     }
     routing {
