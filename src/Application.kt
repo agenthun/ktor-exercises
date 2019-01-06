@@ -31,6 +31,7 @@ import io.ktor.sessions.*
 import io.ktor.util.*
 import io.ktor.velocity.Velocity
 import io.ktor.velocity.VelocityContent
+import io.ktor.webjars.Webjars
 import junit.framework.Assert.fail
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ import java.nio.file.ClosedFileSystemException
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.time.Duration
+import java.time.ZoneId
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -447,6 +449,10 @@ fun Application.module(testing: Boolean = false) {
         get("/simple/velocity") {
             call.respond(VelocityContent("test.vl", model, "e"))
         }
+    }
+    install(Webjars) {
+        path = "assets"
+        zone = ZoneId.of("EST")
     }
     routing {
         post("simple/post/user") {
