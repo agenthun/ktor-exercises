@@ -81,6 +81,7 @@ dependencies {
     compile "io.ktor:ktor-html-builder:$ktor_version"
     compile "io.ktor:ktor-velocity:$ktor_version"
     compile "io.ktor:ktor-webjars:$ktor_version"
+    compile "io.ktor:ktor-websockets:$ktor_version"
     compile "ch.qos.logback:logback-classic:$logback_version"
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
 }

@@ -17,6 +17,10 @@ import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.gson.gson
 import io.ktor.html.*
 import io.ktor.http.*
+import io.ktor.http.cio.websocket.CloseReason
+import io.ktor.http.cio.websocket.Frame
+import io.ktor.http.cio.websocket.close
+import io.ktor.http.cio.websocket.readText
 import io.ktor.http.content.*
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
@@ -32,9 +36,13 @@ import io.ktor.util.*
 import io.ktor.velocity.Velocity
 import io.ktor.velocity.VelocityContent
 import io.ktor.webjars.Webjars
+import io.ktor.websocket.WebSockets
+import io.ktor.websocket.webSocket
 import junit.framework.Assert.fail
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.channels.mapNotNull
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.readAvailable
@@ -453,6 +461,40 @@ fun Application.module(testing: Boolean = false) {
     install(Webjars) {
         path = "assets"
         zone = ZoneId.of("EST")
+    }
+    install(WebSockets) {
+        pingPeriod = Duration.ofSeconds(60)
+        timeout = Duration.ofSeconds(15)
+        maxFrameSize = Long.MAX_VALUE
+        masking = false
+    }
+    routing {
+        webSocket("/") {
+            while (true) {
+                val frame = incoming.receive()
+                when (frame) {
+                    is Frame.Text -> {
+                        val text = frame.readText()
+                        outgoing.send(Frame.Text("YOU SAID: $text"))
+                        if (text.equals("bye", ignoreCase = true)) {
+                            close(CloseReason(CloseReason.Codes.NORMAL, "Client said BYE"))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    routing {
+        webSocket("/") {
+            // websocketSession
+            incoming.mapNotNull { it as? Frame.Text }.consumeEach { frame ->
+                val text = frame.readText()
+                outgoing.send(Frame.Text("YOU SAID $text"))
+                if (text.equals("bye", ignoreCase = true)) {
+                    close(CloseReason(CloseReason.Codes.NORMAL, "Client said BYE"))
+                }
+            }
+        }
     }
     routing {
         post("simple/post/user") {
